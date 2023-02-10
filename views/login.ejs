@@ -102,8 +102,8 @@ body {
 
     <button class="w-100 btn btn-lg btn-primary my-1" type="submit">Sign in</button>
 
-    <% if(!valid){ %>
-      <small class="text-danger">Invalid Username or Password</small>
+    <% if(messages.error){ %>
+      <small class="text-danger"><%= messages.error %></small>
     <% } %>
 
     <div class="footer w-100 mt-5">

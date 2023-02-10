@@ -1,65 +1,92 @@
-const express = require("express")
-
-const app = express()
-app.set("view engine", "ejs")
-app.use("/static", express.static("public"))
-app.use(express.urlencoded({ extended: true }))
-
-app.get("/", (req, res)=>{
-    //if not authenticated
+if (process.env.NODE_ENV !== 'production') {
+    require('dotenv').config()
+  }
+  
+  const express = require('express')
+  const app = express()
+  const bcrypt = require('bcrypt')
+  const passport = require('passport')
+  const flash = require('express-flash')
+  const session = require('express-session')
+  const methodOverride = require('method-override')
+  
+  const initializePassport = require('./passport-config')
+  initializePassport(
+    passport,
+    username => users.find(user => user.username === username),
+    id => users.find(user => user.id === id)
+  )
+  
+  const users = []
+  
+  app.set('view-engine', 'ejs')
+  app.use(express.urlencoded({ extended: false }))
+  app.use(flash())
+  app.use(session({
+    secret: process.env.SESSION_SECRET,
+    resave: false,
+    saveUninitialized: false
+  }))
+  app.use(passport.initialize())
+  app.use(passport.session())
+  app.use(methodOverride('_method'))
+  
+  app.get('/userdashboard', checkAuthenticated, (req, res) => {
+    res.send("userdash")
+  })
+  app.get('/', checkAuthenticated, (req, res) => {
     res.redirect("/login")
-    //else redirect to dashboard
-})
-
-app.get("/login", (req, res)=>{
-    res.render("login", {valid:true})
-})
-
-app.post("/login", (req, res)=>{
-    uname = req.body.username
-    pass = req.body.password
-
-    //check for valid user from database
-    // i am hardcoding it
-    isValid = true
-
-    //redirect to dashboard if correct credentials
-    if(isValid){
-        res.redirect("/userdashboard")
-    } else{
-        context = {uname: uname, pass:pass, valid:false}
-        res.render("login", context)
+  })
+  
+  app.get('/login', checkNotAuthenticated, (req, res) => {
+    res.render('login.ejs')
+  })
+  
+  app.post('/login', checkNotAuthenticated, passport.authenticate('local', {
+    successRedirect: '/',
+    failureRedirect: '/login',
+    failureFlash: true
+  }))
+  
+  app.get('/signup', checkNotAuthenticated, (req, res) => {
+    res.render('signup.ejs')
+  })
+  
+  app.post('/signup', checkNotAuthenticated, async (req, res) => {
+    try {
+      const hashedPassword = await bcrypt.hash(req.body.password1, 10)
+      users.push({
+        id: Date.now().toString(),
+        username: req.body.username,
+        password: hashedPassword
+      })
+      res.redirect('/login')
+    } catch {
+      res.redirect('/signup')
     }
-})
-
-app.get("/signup", (req, res)=>{
-    res.render("signup", {valid:true})
-})
-
-app.post("/signup", (req, res)=>{
-    uname = req.body.username
-    pass = req.body.password1
-
-    //register user to database
-    //check for similar username or anything else ...
-    isReg = true
-
-    //redirect to login page if user registered succesfully
-    if(isReg){
-        context = {uname: uname, pass:pass, valid:true}
-        res.render("login", context)
-    } else{
-        context = {uname: uname, pass:pass, valid:false}
-        res.render("signup", context)
+    console.log(users)
+  })
+  
+  app.delete('/logout', (req, res) => {
+    req.logOut()
+    res.redirect('/login')
+  })
+  
+  function checkAuthenticated(req, res, next) {
+    if (req.isAuthenticated()) {
+      return next()
     }
-})
-
-app.get("/userdashboard", (req, res)=>{
-    //if user is not authenticated redirect back to login page
-    
-    //server user dashboard only when authenticated
-})
-
-app.listen(3000, ()=>{
+  
+    res.redirect('/login')
+  }
+  
+  function checkNotAuthenticated(req, res, next) {
+    if (req.isAuthenticated()) {
+      return res.redirect('/userdashboard')
+    }
+    next()
+  }
+  
+  app.listen(3000, ()=>{
     console.log("App here: http://localhost:3000/")
 })
