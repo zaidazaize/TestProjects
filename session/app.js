@@ -13,9 +13,14 @@ const port = process.env.port || 3000;
 const dbstring = 'mongodb://localhost:27017/tutorialDb'
 const dboption = {
     useNewUrlParser : true,
-    useUnifiedTopology : true,
+    useUnifiedTopology: true,
 }
-const connection = mongoose.createConnection(dbstring, dboption)
+const connection = mongoose.createConnection(dbstring, dboption, (err) => {
+    if (!err) {
+
+        console.log("connected to server")
+    } else console.log(err)
+})
 
 app.use(express.json())
 app.use(urlencoded({ extended: true }))
@@ -26,11 +31,7 @@ app.use(session({
     saveUninitialized: true,
     store: MongoStore.create({
         mongoUrl : dbstring ,collection : 'session'
-    }),
-    cookie: {
-        maxAge: 60 * 10000,
-        httpOnly:true
-    }
+    })
 }))
 
 /** Fror counting the no of visits on each page */
